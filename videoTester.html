@@ -115,6 +115,8 @@
             .then(response => {
                 const reader = response.body.getReader()
                 let imageBuffer = []
+                let lastByte = -1;
+                let startFound = false;
                 cancelAbortIdle()
 
 
@@ -126,27 +128,23 @@
                             let i = 0
                             cancelAbortIdle()
 
-                            while (i < value.length) {
-                                if (i < value.length - 2) {
-                                    // New image
-                                    if (value[i] === 255 && value[i + 1] === 216) {
-                                        imageBuffer = []
-                                    }
-                                    // End image
-                                    if (value[i] === 255 && value[i + 1] === 217) {
-                                        imageBuffer.push(value[i])
-                                        imageBuffer.push(value[i + 1])
-                                        const uint8Array = new Uint8Array(imageBuffer)
-                                        cb(null, uint8Array, abortController)
-                                        imageBuffer = []
-                                        i++
-                                    } else {
-                                        imageBuffer.push(value[i])
-                                    }
-                                } else {
-                                    imageBuffer.push(value[i])
+                            for (let i = 0;  i < value.length; i++) {
+                                if (startFound == false && lastByte == 255 && value[i] == 216) {
+                                  startFound = true;
+                                  imageBuffer = [255,216];
                                 }
-                                i++
+                                else { //startFound == true
+                                  imageBuffer.push(value[i]);
+                                  // check for end marker
+                                  if (lastByte == 255 && value[i] == 217) {
+                                      const uint8Array = new Uint8Array(imageBuffer)
+                                      cb(null, uint8Array, abortController)
+                                      imageBuffer = []
+                                      lastByte = -1;
+                                      startFound = false;
+                                  }
+                                }
+				                lastByte = value[i];
                             }
 
                             // Protect buffer
